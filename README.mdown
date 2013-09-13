@@ -1,0 +1,23 @@
+## Description
+
+ssync is a divide-and-conquer file copying tool to multiple destination
+hosts. It transfers to `n` remote machines in `log n` iterations.
+ssync is a wrapper around the unix tool rsync. Command line arguments
+to ssync are identical to command line arguments for rsync with
+the following exceptions:
+
+- Must use the dummy name "remote" as the destination host, ie. "[USER@]remote:DEST".
+- Must include the option "--hosts host1 host2 host3" at end of the arguments.
+- The trailing slash is not spported in the SRC arguments
+- Contacting the rsync daemon (using :: notation) has not been tested.
+
+Examples:
+
+    ssync -t *.h *.c remote:dest/ --hosts foo bar
+    ssync -avz /data/tmp remote:/dest --hosts foo bar baz quux
+
+If any child process is killed or exits with a non-zero status code
+then the parent process will exit with that status code. ssync
+offers atomicity in case of failures at the granularity of
+the underlying rsync invocations. Each remote host should 
+have observed either all of the updates or none of them.
