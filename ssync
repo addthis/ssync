@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import getpass
+import re
 import signal
 import socket
 import string
@@ -38,6 +39,11 @@ hostname = socket.gethostname()
 # recursive depth. Used for logging purposes.
 depth = 0
 
+# suppress non-error messages
+quiet = False
+
+optionRegex = re.compile("-[^\-]")
+
 def printUsage():
     print
     print "ssync: the recursive file transfer program on top of rsync"
@@ -55,9 +61,14 @@ def printUsage():
 
 # Remove "--depth num" argument from command line options
 # Recursive depth is used for logging purposes.
-def extractDepth(argv):
-    global depth
+def extractOptions(argv):
+    global depth, quiet
     count = argv.count('--depth')
+    quiet = argv.count('--quiet') > 0
+    # find all options of the form '-xyz'
+    singleOpts = [x for x in argv if optionRegex.match(x) is not None]
+    for opts in singleOpts:
+        quiet = quiet or (opts.find('q') > 0)
     if count > 1:
         print
         print "USAGE: multiple \"--depth\" arguments identified"
@@ -187,12 +198,13 @@ def waitPids(pids):
             status = status >> 8
             if (signal > 0):
                 print >> sys.stderr, \
-                    "child process %s killed by signal %s" % (pid, signal)   
+                    "[%d] child process %s killed by signal %s" % \
+                    (depth, pid, signal)
                 exitcode = 1
             else:
                 print >> sys.stderr, \
-                    "child process %s exited with non-zero status %s" % \
-                    (pid, status)   
+                    "[%d] child process %s exited with non-zero status %s" % \
+                    (depth, pid, status)   
                 exitcode = status
             stopAndQuit(pids, exitcode)
 
@@ -242,16 +254,19 @@ def recursive(rsyncOptions, hostList):
     process = subprocess.Popen(leftCommand, shell=True)
     # see comment regarding pylint
     pid = vars(process)['pid']
-    print "[%d] ssync from %s to %s (pid %s)" % (depth, leftHead, leftHosts, pid)
+    if not quiet:
+        print "[%d] ssync from %s to %s (pid %s)" % (depth, leftHead, leftHosts, pid)
     pids.append(pid)
 
     process = subprocess.Popen(rightCommand, shell=True)
     # see comment regarding pylint
     pid = vars(process)['pid']
-    print "[%d] ssync from %s to %s (pid %s)" % (depth, rightHead, rightHosts, pid)
+    if not quiet:
+        print "[%d] ssync from %s to %s (pid %s)" % (depth, rightHead, rightHosts, pid)
     pids.append(pid)
 
-    print "[%d] waiting on pids %s" % (depth, pids)
+    if not quiet:
+        print "[%d] waiting on pids %s" % (depth, pids)
 
     waitPids(pids)
 
@@ -259,7 +274,8 @@ def recursive(rsyncOptions, hostList):
 # and then wait for rysnc processes to finish
 def basecase(rsyncOptions, hostList):
     pids = []
-    print "[%d] rsync from %s to %s" % (depth, hostname, hostList)
+    if not quiet:
+        print "[%d] rsync from %s to %s" % (depth, hostname, hostList)
     for host in hostList:
         options = replaceHostName(host, rsyncOptions)
         options.insert(0, rsyncCommand)
@@ -276,8 +292,8 @@ def main(argv):
         printUsage()
         sys.exit(2)
 
-    # extract the "--depth N" command line argument
-    extractDepth(argv)
+    # extract the "--depth" and "--quiet" command line argument
+    extractOptions(argv)
 
     # find the position of the "--hosts" argument
     hostBegin = findHosts(argv)
