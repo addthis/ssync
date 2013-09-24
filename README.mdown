@@ -8,7 +8,7 @@ the following exceptions:
 
 - Must use the dummy name "remote" as the destination host, ie. "[USER@]remote:DEST".
 - Must include the option "--hosts host1 host2 host3" at end of the arguments.
-- The trailing slash is not spported in the SRC arguments
+- The trailing slash is not supported in the SRC arguments
 - Contacting the rsync daemon (using :: notation) has not been tested.
 
 Examples:
