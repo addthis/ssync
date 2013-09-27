@@ -42,19 +42,19 @@ quiet = False
 optionRegex = re.compile("-[^\-]")
 
 def printUsage():
-    print
-    print "ssync: the recursive file transfer program on top of rsync"
-    print
-    print "ssync usage is identical to rsync with these exceptions:"
-    print "- Must specify the string \"[USER@]remote:DEST\"."
-    print "- Must include the option \"--hosts host1 host2 host3\" at end of the arguments."
-    print "- The trailing slash is not spported in the SRC arguments"
-    print "- Contacting the rsync daemon (using :: notation) has not been tested."
-    print
-    print "Examples:"
-    print "  ssync -t *.c remote:dest/ --hosts foo bar"
-    print "  ssync -avz /data/tmp remote:/dest --hosts foo bar baz quux"
-    print 
+    print()
+    print("ssync: the recursive file transfer program on top of rsync")
+    print()
+    print("ssync usage is identical to rsync with these exceptions:")
+    print("- Must specify the string \"[USER@]remote:DEST\".")
+    print("- Must include the option \"--hosts host1 host2 host3\" at end of the arguments.")
+    print("- The trailing slash is not spported in the SRC arguments")
+    print("- Contacting the rsync daemon (using :: notation) has not been tested.")
+    print()
+    print("Examples:")
+    print("  ssync -t *.c remote:dest/ --hosts foo bar")
+    print("  ssync -avz /data/tmp remote:/dest --hosts foo bar baz quux")
+    print() 
 
 # Remove "--depth num" argument from command line options
 # Recursive depth is used for logging purposes.
@@ -67,16 +67,16 @@ def extractOptions(argv):
     for opts in singleOpts:
         quiet = quiet or (opts.find('q') > 0)
     if count > 1:
-        print
-        print "USAGE: multiple \"--depth\" arguments identified"
-        print
+        print()
+        print("USAGE: multiple \"--depth\" arguments identified")
+        print()
         sys.exit(2) 
     elif count == 1:
         location = argv.index('--depth')
         if location == len(argv) - 1:
-            print
-            print "USAGE: \"--depth\" argument missing parameter"
-            print
+            print()
+            print("USAGE: \"--depth\" argument missing parameter")
+            print()
             sys.exit(2) 
         depth = int(argv[location + 1])
         del argv[location : (location + 2)]
@@ -89,10 +89,10 @@ def validateArguments(terminus, argv):
         if current[0] == "-":
             continue 
         elif current[-1] == "/":
-            print
-            print "USAGE: ssync does not support trailing slashes in SRC " +\
-                  "arguments"
-            print
+            print()
+            print("USAGE: ssync does not support trailing slashes in SRC " +\
+                  "arguments")
+            print()
             sys.exit(2)
 
 # Replace the dummy host name "remote" with the target host name
@@ -101,10 +101,10 @@ def replaceHostName(hostName, rsyncOptions):
     result = list(rsyncOptions)
 
     if len(result) == 0:
-        print
-        print "USAGE: missing required argument " +\
-              "\"[USER@]remote:DEST\""
-        print
+        print()
+        print("USAGE: missing required argument " +\
+              "\"[USER@]remote:DEST\"")
+        print()
         sys.exit(2)
 
     # destination should be last argument to rsync
@@ -114,10 +114,10 @@ def replaceHostName(hostName, rsyncOptions):
     position = string.find(candidate, "remote:")
 
     if position < 0:
-        print
-        print "USAGE: missing required argument " +\
-              "\"[USER@]remote:DEST\""
-        print
+        print()
+        print("USAGE: missing required argument " +\
+              "\"[USER@]remote:DEST\"")
+        print()
         sys.exit(2)
   
     # replace dummy remote target with actual host name
@@ -135,8 +135,8 @@ def findUsernameAndDirectory(rsyncOptions):
     if pos == 0:
         username = getpass.getuser()
     elif candidate[pos - 1] != "@":
-        print
-        print "ssync error: username cannot be parsed in \"%s\"" % (candidate)
+        print()
+        print("ssync error: username cannot be parsed in \"%s\"" % (candidate))
         sys.exit(2)
     else:
         username = candidate[ : pos - 1]
@@ -144,8 +144,8 @@ def findUsernameAndDirectory(rsyncOptions):
     dirPos = pos + len("remote:")     
 
     if dirPos >= len(candidate):
-        print
-        print "ssync error: destination directory is not specified."
+        print()
+        print("ssync error: destination directory is not specified.")
         sys.exit(2)
 
     directory = candidate[dirPos : ]
@@ -158,29 +158,29 @@ def findHosts(argv):
     count = argv.count('--hosts')
 
     if count < 1:
-        print
-        print "USAGE: missing required argument " +\
-              "\"--hosts host1 host2 ... hostN\""
-        print
+        print()
+        print("USAGE: missing required argument " +\
+              "\"--hosts host1 host2 ... hostN\"")
+        print()
         sys.exit(2)
     elif count > 1:
-        print
-        print "USAGE: multiple \"--hosts\" arguments identified"
-        print
+        print()
+        print("USAGE: multiple \"--hosts\" arguments identified")
+        print()
         sys.exit(2) 
 
     hostBegin = argv.index('--hosts')
 
     if hostBegin < 3:
-        print
-        print "USAGE: missing rsync options"
-        print
+        print()
+        print("USAGE: missing rsync options")
+        print()
         sys.exit(2)
 
     if hostBegin == len(argv) - 1:
-        print
-        print "USAGE: \"--hosts\" argument has not specified any hosts"
-        print
+        print()
+        print("USAGE: \"--hosts\" argument has not specified any hosts")
+        print()
         sys.exit(2) 
 
     return hostBegin
@@ -194,14 +194,12 @@ def waitPids(pids):
             signal = status & 0xFF
             status = status >> 8
             if (signal > 0):
-                print >> sys.stderr, \
-                    "[%d] child process %s killed by signal %s" % \
-                    (depth, pid, signal)
+                print("[%d] child process %s killed by signal %s" % \
+                    (depth, pid, signal), file=sys.stderr)
                 exitcode = 1
             else:
-                print >> sys.stderr, \
-                    "[%d] child process %s exited with non-zero status %s" % \
-                    (depth, pid, status)   
+                print("[%d] child process %s exited with non-zero status %s" % \
+                    (depth, pid, status), file=sys.stderr)   
                 exitcode = status
             stopAndQuit(pids, exitcode)
 
@@ -252,18 +250,18 @@ def recursive(rsyncOptions, hostList):
     # see comment regarding pylint
     pid = vars(process)['pid']
     if not quiet:
-        print "[%d] ssync from %s to %s (pid %s)" % (depth, leftHead, leftHosts, pid)
+        print("[%d] ssync from %s to %s (pid %s)" % (depth, leftHead, leftHosts, pid))
     pids.append(pid)
 
     process = subprocess.Popen(rightCommand, shell=True)
     # see comment regarding pylint
     pid = vars(process)['pid']
     if not quiet:
-        print "[%d] ssync from %s to %s (pid %s)" % (depth, rightHead, rightHosts, pid)
+        print("[%d] ssync from %s to %s (pid %s)" % (depth, rightHead, rightHosts, pid))
     pids.append(pid)
 
     if not quiet:
-        print "[%d] waiting on pids %s" % (depth, pids)
+        print("[%d] waiting on pids %s" % (depth, pids))
 
     waitPids(pids)
 
@@ -272,7 +270,7 @@ def recursive(rsyncOptions, hostList):
 def basecase(rsyncOptions, hostList):
     pids = []
     if not quiet:
-        print "[%d] rsync from %s to %s" % (depth, hostname, hostList)
+        print("[%d] rsync from %s to %s" % (depth, hostname, hostList))
     for host in hostList:
         options = replaceHostName(host, rsyncOptions)
         options.insert(0, rsyncCommand)
