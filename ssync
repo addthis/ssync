@@ -213,6 +213,10 @@ def stopAndQuit(pids, exitcode):
             os.kill(pid, signal.SIGTERM)
         except Exception:
             pass
+    print()
+    print("ERROR: One or more child ssyncs either "
+          "failed or received a termination signal.")
+    print()
     sys.exit(exitcode)
 
 # Generate the child ssync call
