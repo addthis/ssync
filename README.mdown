@@ -21,3 +21,7 @@ then the parent process will exit with that status code. ssync
 offers atomicity in case of failures at the granularity of
 the underlying rsync invocations. Each remote host should 
 have observed either all of the updates or none of them.
+
+The "--continue" command line option will allow ssync to ignore
+the failure to connect to a host. The script will attempt to 
+connect to the remaining hosts in the list.
