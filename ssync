@@ -40,6 +40,9 @@ depth = 0
 # suppress non-error messages
 quiet = False
 
+# continue on failure of a subprocess
+doContinue = False
+
 optionRegex = re.compile("-[^\-]")
 
 def printUsage():
@@ -60,13 +63,19 @@ def printUsage():
 # Remove "--depth num" argument from command line options
 # Recursive depth is used for logging purposes.
 def extractOptions(argv):
-    global depth, quiet
+    global depth, quiet, doContinue
     count = argv.count('--depth')
     quiet = argv.count('--quiet') > 0
+    doContinue = argv.count('--continue') > 0
     # find all options of the form '-xyz'
     singleOpts = [x for x in argv if optionRegex.match(x) is not None]
     for opts in singleOpts:
         quiet = quiet or (opts.find('q') > 0)
+    if argv.count('--continue') > 1:
+        print()
+        print("USAGE: multiple \"--continue\" arguments identified")
+        print()
+        sys.exit(2)
     if count > 1:
         print()
         print("USAGE: multiple \"--depth\" arguments identified")
@@ -188,21 +197,34 @@ def findHosts(argv):
 
 # Wait for child processes to finish
 # If a child process died then kill all children and quit this process
-def waitPids(pids):
-    for pid in pids:
+def waitPids(pids, basecase):
+    failed = []
+    for key, pid in pids.iteritems():
         (childpid, status) = os.waitpid(pid, 0)
         if status != 0:
             signal = status & 0xFF
             status = status >> 8
             if (signal > 0):
-                print("[%d] child process %s killed by signal %s" % \
-                    (depth, pid, signal), file=sys.stderr)
+                if basecase:
+                    print("[%d] child process %s attempting to connect to %s killed by signal %s" % \
+                        (depth, pid, key, signal), file=sys.stderr)
+                else:
+                    print("[%d] child process %s killed by signal %s" % \
+                        (depth, pid, signal), file=sys.stderr)
                 exitcode = 1
             else:
-                print("[%d] child process %s exited with non-zero status %s" % \
-                    (depth, pid, status), file=sys.stderr)   
+                if basecase:
+                    print("[%d] child process %s attempting to connect to %s exited with non-zero status %s" % \
+                        (depth, pid, key, status), file=sys.stderr)
+                else:
+                    print("[%d] child process %s exited with non-zero status %s" % \
+                        (depth, pid, status), file=sys.stderr)
                 exitcode = status
-            stopAndQuit(pids, exitcode)
+            if not doContinue:
+                stopAndQuit(pids, exitcode)
+            else:
+                failed.append(key)
+    return failed
 
 # Send a term signal to all processes in the pid list
 # and then terminate with exitcode status code
@@ -215,6 +237,7 @@ def stopAndQuit(pids, exitcode):
     print()
     print("ERROR: One or more child ssyncs either "
           "failed or received a termination signal.")
+    print("You can try to rerun ssync with the --continue option.")
     print()
     sys.exit(exitcode)
 
@@ -242,48 +265,64 @@ def recursive(rsyncOptions, hostList):
     leftHead = leftHosts.pop(0)
     rightHead = rightHosts.pop(0)
 
-    basecase(rsyncOptions, list((leftHead, rightHead)))
+    heads = list((leftHead, rightHead))
 
-    leftCommand  = generateRecursiveHalf(rsyncOptions, leftHead, 
+    while len(heads) > 0:
+        failed = basecase(rsyncOptions, heads)
+        heads = []
+        if leftHead in failed and len(leftHosts) > 0:
+            leftHead = leftHosts.pop(0)
+            heads.append(leftHead)
+        if rightHead in failed and len(rightHosts) > 0:
+            rightHead = rightHosts.pop(0)
+            heads.append(rightHead)
+
+    pids = {}
+
+    if len(leftHosts) > 0:
+        leftCommand = generateRecursiveHalf(rsyncOptions, leftHead,
                       leftHosts, user, targetDir)
-    rightCommand = generateRecursiveHalf(rsyncOptions, rightHead, 
+ 
+        process = subprocess.Popen(leftCommand, shell=True)
+        # see comment regarding pylint
+        pid = vars(process)['pid']
+        if not quiet:
+            print("[%d] ssync from %s to %s (pid %s)" % (depth, leftHead, leftHosts, pid))
+        pids[leftHead] = pid
+
+    if len(rightHosts) > 0:
+        rightCommand = generateRecursiveHalf(rsyncOptions, rightHead,
                       rightHosts, user, targetDir)
 
-    pids = []
- 
-    process = subprocess.Popen(leftCommand, shell=True)
-    # see comment regarding pylint
-    pid = vars(process)['pid']
-    if not quiet:
-        print("[%d] ssync from %s to %s (pid %s)" % (depth, leftHead, leftHosts, pid))
-    pids.append(pid)
-
-    process = subprocess.Popen(rightCommand, shell=True)
-    # see comment regarding pylint
-    pid = vars(process)['pid']
-    if not quiet:
-        print("[%d] ssync from %s to %s (pid %s)" % (depth, rightHead, rightHosts, pid))
-    pids.append(pid)
+        process = subprocess.Popen(rightCommand, shell=True)
+        # see comment regarding pylint
+        pid = vars(process)['pid']
+        if not quiet:
+            print("[%d] ssync from %s to %s (pid %s)" % (depth, rightHead, rightHosts, pid))
+        pids[rightHead] = pid
 
     if not quiet:
         print("[%d] waiting on pids %s" % (depth, pids))
 
-    waitPids(pids)
+    waitPids(pids, False)
 
 # Launch a fixed small number of rsync processes in the background
 # and then wait for rysnc processes to finish
 def basecase(rsyncOptions, hostList):
-    pids = []
+    pids = {}
     if not quiet:
         print("[%d] rsync from %s to %s" % (depth, hostname, hostList))
     for host in hostList:
         options = replaceHostName(host, rsyncOptions)
         options.insert(0, rsyncCommand)
+        if '--continue' in options:
+            options.remove('--continue')
         process = subprocess.Popen(options)
         # wanted to do the commented-out line but pylint has a bug
-        # pids.append(process.pid)
-        pids.append(vars(process)['pid'])
-    waitPids(pids)
+        # pids[host] = process.pid
+        pids[host] = vars(process)['pid']
+    failed = waitPids(pids, True)
+    return failed
 
 def main(argv):
 
@@ -292,7 +331,7 @@ def main(argv):
         printUsage()
         sys.exit(2)
 
-    # extract the "--depth" and "--quiet" command line argument
+    # extract the "--depth", "--quiet", and "--continue" command line argument
     extractOptions(argv)
 
     # find the position of the "--hosts" argument
