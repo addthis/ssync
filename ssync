@@ -249,7 +249,11 @@ def generateRecursiveHalf(rsyncOptions, head, hosts, user, targetDir):
     options.insert(1, "--depth %d" % (depth + 1))
     options.append("--hosts")
     options.extend(hosts)
-    command  = "ssh %s@%s \"cd %s; %s\"" % (user, head, 
+    if quiet:
+        qFlags = "-q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
+    else:
+        qFlags = ""
+    command  = "ssh %s %s@%s \"cd %s; %s\"" % (qFlags, user, head,
                    targetDir, string.join(options))
     return command
 
@@ -316,6 +320,9 @@ def basecase(rsyncOptions, hostList):
     for host in hostList:
         options = replaceHostName(host, rsyncOptions)
         options.insert(0, rsyncCommand)
+        if quiet:
+            options.insert(1, "-e")
+            options.insert(2, "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no")
         if '--continue' in options:
             options.remove('--continue')
         process = subprocess.Popen(options)
