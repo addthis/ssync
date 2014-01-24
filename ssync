@@ -237,11 +237,12 @@ def stopAndQuit(pids, exitcode):
             os.kill(pid, signal.SIGTERM)
         except Exception:
             pass
-    print
-    print("ERROR: One or more child ssyncs either "
-          "failed or received a termination signal.")
-    print "You can try to rerun ssync with the --continue option."
-    print
+    if depth == 0:
+        print
+        print "ERROR: One or more child ssync processes either exited with"
+        print "       non-zero status or received a termination signal."
+        print "You can try to rerun ssync with the --continue option."
+        print
     sys.exit(exitcode)
 
 # Generate the child ssync call
