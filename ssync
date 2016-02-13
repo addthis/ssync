@@ -253,8 +253,9 @@ def generateRecursiveHalf(rsyncOptions, head, hosts, user, targetDir):
         qFlags = "-q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
     else:
         qFlags = ""
+    rsync_command = string.join(options).replace('"', '\"').replace('$', '\$')    
     command  = "ssh %s %s@%s \"cd %s; %s\"" % (qFlags, user, head,
-                   targetDir, string.join(options))
+                   targetDir, rsync_command)
     return command
 
 # Split the host list in half and recursively call ssync on the target machines
