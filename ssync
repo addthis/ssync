@@ -245,7 +245,7 @@ def stopAndQuit(pids, exitcode):
 # Generate the child ssync call
 def generateRecursiveHalf(rsyncOptions, head, hosts, user, targetDir):
     options = list(rsyncOptions)
-    options.insert(0, "ssync")
+    options.insert(0, os.path.join(targetDir, "ssync"))
     options.insert(1, "--depth %d" % (depth + 1))
     options.append("--hosts")
     options.extend(hosts)
@@ -321,6 +321,7 @@ def basecase(rsyncOptions, hostList):
     for host in hostList:
         options = replaceHostName(host, rsyncOptions)
         options.insert(0, rsyncCommand)
+        options.insert(1, __file__)
         if quiet:
             options.insert(1, "-e")
             options.insert(2, "ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no")
