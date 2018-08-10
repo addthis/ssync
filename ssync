@@ -244,8 +244,9 @@ def stopAndQuit(pids, exitcode):
 
 # Generate the child ssync call
 def generateRecursiveHalf(rsyncOptions, head, hosts, user, targetDir):
+    remote_ssync_script = os.path.join(targetDir, "ssync")
     options = list(rsyncOptions)
-    options.insert(0, os.path.join(targetDir, "ssync"))
+    options.insert(0, remote_ssync_script)
     options.insert(1, "--depth %d" % (depth + 1))
     options.append("--hosts")
     options.extend(hosts)
@@ -254,8 +255,8 @@ def generateRecursiveHalf(rsyncOptions, head, hosts, user, targetDir):
     else:
         qFlags = ""
     rsync_command = string.join(options).replace('"', '\"').replace('$', '\$')    
-    command  = "ssh %s %s@%s \"cd %s; %s\"" % (qFlags, user, head,
-                   targetDir, rsync_command)
+    command  = "ssh %s %s@%s \"cd %s; %s; rm %s\"" % (qFlags, user, head,
+                   targetDir, rsync_command, remote_ssync_script)
     return command
 
 # Split the host list in half and recursively call ssync on the target machines
